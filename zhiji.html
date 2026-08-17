@@ -142,9 +142,10 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
 .fb button:hover{background:#f3ede0;border-color:#d8c9a8}
 .fb button:active{transform:scale(.92)}
 .fb button .fi{font-size:14px;line-height:1}
-/* v3：快捷行（加粗/撤销/颜色） */
-.fb-quick{display:flex;align-items:center;gap:3px;padding:0 2px 4px;border-bottom:1px solid #f0e7d6;margin-bottom:6px}
-.fb-quick .fb-btn{min-width:38px}
+/* v4：简约按钮条（9 个主要编辑按钮，间距 4px 合理分布） */
+.fb-grid{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:2px 2px 4px}
+.fb-grid .fb-btn{min-width:36px;height:32px}
+.fb-grid .fb-btn:hover .fi{transform:translateY(-1px)}
 .fclr-mini{position:relative;display:inline-flex}
 .fclr-pop{position:absolute;left:0;top:calc(100% + 4px);z-index:60;display:flex;flex-wrap:wrap;gap:6px;background:#fffdf6;border:1px solid #e4d9c3;border-radius:10px;box-shadow:0 10px 26px rgba(60,40,15,.2);padding:7px;width:118px}
 .fclr-pop i{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid #d8c9a8;display:inline-block;transition:transform .12s;box-sizing:border-box;background:#000}
@@ -155,18 +156,6 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
 .fclr-pop i[fc="#6366f1"]{background:#6366f1}
 .fclr-pop i[fc="#8a7d6c"]{background:#8a7d6c}
 .fclr-pop i:hover{transform:scale(1.15)}
-/* v3：指令输入行 */
-.fb-cmdrow{display:flex;align-items:center;gap:4px}
-.fb-cmdinp{flex:1;min-width:0;border:1px solid #d8c9a8;border-radius:8px;background:#fffdf6;padding:7px 10px;font-size:12.5px;color:var(--ink);outline:none;font-family:inherit}
-.fb-cmdinp:focus{border-color:var(--ac);box-shadow:0 0 0 2px rgba(15,157,114,.12)}
-.fb-cmdinp::placeholder{color:#b7aa8c}
-.fb-mic{width:34px;height:32px;border:1px solid #d8c9a8;border-radius:8px;background:#fffdf6;font-size:15px;cursor:pointer;line-height:1;transition:all .15s}
-.fb-mic:hover{background:#f3ede0}
-.fb-mic.rec{background:#d6452f;color:#fff;border-color:#d6452f;animation:synpulse 1s ease-in-out infinite}
-.fb-go{width:34px;height:32px;border:1px solid var(--b1);border-radius:8px;background:var(--b1bg);color:var(--b1);font-size:14px;cursor:pointer;line-height:1;transition:all .15s}
-.fb-go:hover{background:var(--b1);color:#fff}
-/* v3.1：指令框聚焦时给选中文字套的临时高亮（替代消失的原生选区高亮） */
-.fb-sel-hl{background:rgba(207,138,30,.22);border-radius:2px;box-shadow:0 0 0 1px rgba(207,138,30,.16)}
 /* 删除确认弹窗（页面内自定义，任何环境都会弹） */
 .cfm-mask{position:fixed;inset:0;background:rgba(60,45,30,.34);align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(1px)}
 .cfm-box{background:#fffdF8;border:1px solid var(--line);border-radius:14px;padding:22px 24px;max-width:330px;width:86%;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.18)}
@@ -270,9 +259,7 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
   .content{padding:16px}
   /* 移动端：浮条按钮加大到触控标准 44px，更好点按 */
   .fb button{min-width:44px;height:42px;padding:0 8px;font-size:14px}
-  .fb-quick .fb-btn{min-width:48px}
-  .fb-cmdinp{font-size:14px;padding:9px 12px}
-  .fb-mic,.fb-go{width:46px;height:42px;font-size:17px}
+  .fb-grid .fb-btn{min-width:44px;height:42px}
   .fclr-pop{width:150px}
   .fclr-pop i{width:26px;height:26px}
 }
@@ -401,16 +388,18 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
 </div>
 
 <!-- AI 浮球已移除 -->
-<!-- 选区浮条 v3：指令框（打字/语音）+ 极少量快捷键。选中文字弹出，取消选择自动收起 -->
+<!-- 选区浮条 v4：简约编辑按钮条。选中文字弹出，定位在选区下方不挡字；取消选择自动收起 -->
 <div class="fb" id="fb">
   <div class="fb-grip" id="fbGrip">
     <span class="fb-grip-h" title="按住这里拖动">⠿</span>
-    <span class="fb-grip-t">编辑选中文字</span>
+    <span class="fb-grip-t">编辑</span>
     <button type="button" class="fb-fold" title="收起工具栏" onclick="fbFold()">▾</button>
   </div>
-  <div class="fb-quick">
-    <button type="button" class="fb-btn" title="加粗" onclick="fbFmt('bold')"><span class="fi"><b>B</b></span></button>
+  <div class="fb-grid">
     <button type="button" class="fb-btn" title="撤销上一步" onclick="fbUndo()"><span class="fi">⟲</span></button>
+    <button type="button" class="fb-btn" title="加粗" onclick="fbFmt('bold')"><span class="fi"><b>B</b></span></button>
+    <button type="button" class="fb-btn" title="斜体" onclick="fbFmt('italic')"><span class="fi"><i>I</i></span></button>
+    <button type="button" class="fb-btn" title="下划线" onclick="fbFmt('underline')"><span class="fi"><u>U</u></span></button>
     <span class="fclr-mini" id="fclrMini">
       <button type="button" class="fb-btn" title="文字颜色" onclick="toggleColorMini()"><span class="fi">🎨</span></button>
       <span class="fclr-pop" id="fclrPop" style="display:none">
@@ -422,11 +411,10 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
         <i fc="#8a7d6c" title="灰" onclick="fbColor('#8a7d6c')"></i>
       </span>
     </span>
-  </div>
-  <div class="fb-cmdrow">
-    <input type="text" class="fb-cmdinp" id="fbCmdInp" placeholder="输入指令：加粗 / 变红 / 标题 / 引用… 或点 🎤 说话" enterkeyhint="go">
-    <button type="button" class="fb-mic" id="fbMic" title="语音输入指令" onclick="fbSpeak()">🎤</button>
-    <button type="button" class="fb-go" id="fbGo" title="执行指令" onclick="submitFbCmd()">➤</button>
+    <button type="button" class="fb-btn" title="设为标题" onclick="fbFmtBlock('H3')"><span class="fi">H</span></button>
+    <button type="button" class="fb-btn" title="引用" onclick="fbFmtBlock('BLOCKQUOTE')"><span class="fi">❝</span></button>
+    <button type="button" class="fb-btn" title="无序列表" onclick="fbFmt('insertUnorderedList')"><span class="fi">•</span></button>
+    <button type="button" class="fb-btn" title="清除格式" onclick="fbClearFmt()"><span class="fi">⌫</span></button>
   </div>
 </div>
 <div id="toast"></div>
@@ -1705,7 +1693,6 @@ document.addEventListener('pointerdown',function(e){
   }else{
     /* 浮条外：若不在编辑器内 → 收起（取消）；在编辑器内则驻留等待下次选中 */
     if(fb&&fb.classList.contains('show')&&!inEditor(e.target)){
-      unmarkFbSel();
       _lastRange=null;_fbKey=null;_fbDraged=false;
       fb.classList.remove('show');
     }
@@ -1737,7 +1724,7 @@ function showFloat(){
   if(!_fbDraged)positionFloat(); // 拖动过则保持当前位置
 }
 function hideFloat(){var fb=document.getElementById('fb');if(fb)fb.classList.remove('show');}
-function fbFold(){unmarkFbSel();hideFloat();_lastRange=null;_fbKey=null;_fbDraged=false;} // 主动收起；取消选择也会自动收起
+function fbFold(){hideFloat();_lastRange=null;_fbKey=null;_fbDraged=false;} // 主动收起；取消选择也会自动收起
 /* 拖动浮条（按住顶部 ⠿ 手柄） */
 (function(){
   var grip=document.getElementById('fbGrip');if(!grip)return;
@@ -1769,24 +1756,29 @@ function positionFloat(){
   fb.style.visibility='hidden';
   var fbRect=fb.getBoundingClientRect();
   var left=rect.left+rect.width/2-fbRect.width/2;
-  var top=rect.bottom+8; // 默认弹在选区/文本框下方，避免挡字
-  if(top+fbRect.height>window.innerHeight-8){ // 下方放不下（选区太靠底）→ 贴底显示，绝不跳到选区上方
-    top=window.innerHeight-fbRect.height-8;
+  left=Math.max(8,Math.min(left,window.innerWidth-fbRect.width-8));
+  var top=rect.bottom+8; // 首选：弹在选区正下方，绝不挡字
+  /* 下方放不下 → 弹到选区上方（也绝不挡字）；上下都放不下才贴边兜底 */
+  if(top+fbRect.height>window.innerHeight-8){
+    top=rect.top-fbRect.height-8;
+    if(top<8){
+      /* 选区在屏幕中部被上下夹击（罕见）→ 优先贴底避免挡字 */
+      top=window.innerHeight-fbRect.height-8;
+      if(top<rect.top-fbRect.height-8){top=rect.top-fbRect.height-8;}
+    }
   }
   if(top<8)top=8;
-  left=Math.max(8,Math.min(left,window.innerWidth-fbRect.width-8));
   fb.style.left=left+'px';fb.style.top=top+'px';
   fb.style.visibility='visible';
 }
-/* 取消选择自动收起 + 重新选中显示，统一由下方 v3 的 selectionchange 处理 */
+/* 取消选择自动收起 + 重新选中显示，统一由下方 v4 的 selectionchange 处理 */
 window.addEventListener('scroll',function(){},true);
 window.addEventListener('resize',function(){});
 /* 浮条操作：先 restoreSel 找回选区，再 execCommand——onclick 内同步执行，不依赖 preventDefault */
-function fbFmt(cmd){unmarkFbSel();restoreSel();document.execCommand(cmd,false,null);saveSel();}
-function fbFmtBlock(tag){unmarkFbSel();restoreSel();document.execCommand('formatBlock',false,tag);saveSel();}
+function fbFmt(cmd){restoreSel();document.execCommand(cmd,false,null);saveSel();}
+function fbFmtBlock(tag){restoreSel();document.execCommand('formatBlock',false,tag);saveSel();}
 /* 撤销/重做：优先用 execCommand（浏览器原生），失败则降级到"还原基线"（undoItem） */
 function fbUndo(){
-  unmarkFbSel();
   restoreSel();
   var ok=false;
   try{ok=document.execCommand('undo',false,null);}catch(e){ok=false;}
@@ -1803,11 +1795,10 @@ function fbRedo(){
   if(!ok){toast('重做不可用：请手动调整');}
   saveSel();
 }
-function fbColor(c){unmarkFbSel();restoreSel();document.execCommand('foreColor',false,c);saveSel();}
-function fbClearFmt(){unmarkFbSel();restoreSel();document.execCommand('removeFormat',false,null);saveSel();}
+function fbColor(c){restoreSel();document.execCommand('foreColor',false,c);saveSel();}
+function fbClearFmt(){restoreSel();document.execCommand('removeFormat',false,null);saveSel();}
 var _fbFontLevel=3;
 function fbFont(d){
-  unmarkFbSel();
   _fbFontLevel=Math.max(1,Math.min(7,_fbFontLevel+d));
   restoreSel();document.execCommand('fontSize',false,String(_fbFontLevel));saveSel();
 }
@@ -1819,127 +1810,7 @@ function fbRevert(){
   }
   hideFloat();
 }
-/* ===== v3 指令引擎：自然语言 → 格式命令 ===== */
-/* 词库映射：关键词 → {fn, arg}。fn 为要调用的格式化函数 */
-var FB_CMD_MAP=[
-  {keys:['加粗','粗体','bold','变粗'],fn:'fbFmt',arg:'bold',label:'加粗'},
-  {keys:['斜体','italic','变斜'],fn:'fbFmt',arg:'italic',label:'斜体'},
-  {keys:['下划线','下划','underline'],fn:'fbFmt',arg:'underline',label:'下划线'},
-  {keys:['删除线','划线','strike'],fn:'fbFmt',arg:'strikeThrough',label:'删除线'},
-  {keys:['清除格式','清格式','去掉格式','取消格式','清除'],fn:'fbClearFmt',arg:null,label:'清除格式'},
-  {keys:['撤销','undo','回退'],fn:'fbUndo',arg:null,label:'撤销'},
-  {keys:['标题','h3','heading'],fn:'fbFmtBlock',arg:'H3',label:'设为标题'},
-  {keys:['引用','引言','blockquote'],fn:'fbFmtBlock',arg:'BLOCKQUOTE',label:'设为引用'},
-  {keys:['列表','无序'],fn:'fbFmt',arg:'insertUnorderedList',label:'无序列表'},
-  {keys:['编号','有序'],fn:'fbFmt',arg:'insertOrderedList',label:'有序列表'},
-  {keys:['红色','红字'],fn:'fbColor',arg:'#d6452f',label:'红色'},
-  {keys:['橙色','橙字'],fn:'fbColor',arg:'#d97706',label:'橙色'},
-  {keys:['绿色','绿字'],fn:'fbColor',arg:'#059669',label:'绿色'},
-  {keys:['青色','青字'],fn:'fbColor',arg:'#0891b2',label:'青色'},
-  {keys:['紫色','紫字'],fn:'fbColor',arg:'#6366f1',label:'紫色'},
-  {keys:['灰色','灰字'],fn:'fbColor',arg:'#8a7d6c',label:'灰色'},
-  {keys:['黑色','黑字','默认色'],fn:'fbColor',arg:'#374151',label:'黑色'},
-  {keys:['大字','放大','大一点','大号'],fn:'fbFont',arg:1,label:'放大字号'},
-  {keys:['小字','缩小','小一点','小号'],fn:'fbFont',arg:-1,label:'缩小字号'},
-  {keys:['还原','恢复','复原'],fn:'fbRevert',arg:null,label:'还原'}
-];
-function parseFbCmd(raw){
-  var t=(raw||'').trim().toLowerCase();
-  if(!t)return null;
-  for(var i=0;i<FB_CMD_MAP.length;i++){
-    var m=FB_CMD_MAP[i];
-    for(var j=0;j<m.keys.length;j++){
-      if(t.indexOf(m.keys[j])>=0)return m;
-    }
-  }
-  return null;
-}
-/* ===== v3.1 选区高亮标记：指令框聚焦时，给选中文字套临时高亮（原生高亮在失焦后消失） ===== */
-var _fbMarkSpan=null;
-function markFbSel(){
-  unmarkFbSel();
-  var sel=window.getSelection();
-  if(!sel||sel.rangeCount===0||sel.isCollapsed)return;
-  var r=sel.getRangeAt(0);
-  if(!inEditor(r.commonAncestorContainer))return;
-  try{
-    var span=document.createElement('span');
-    span.className='fb-sel-hl';
-    var frag=r.extractContents();
-    span.appendChild(frag);
-    r.insertNode(span);
-    _fbMarkSpan=span;
-    var nr=document.createRange();
-    nr.selectNodeContents(span);
-    _lastRange=nr;_fbKey=null;
-  }catch(e){}
-}
-function unmarkFbSel(){
-  if(!_fbMarkSpan)return;
-  try{
-    var span=_fbMarkSpan;
-    var parent=span.parentNode;
-    var kids=[];while(span.firstChild)kids.push(span.firstChild);
-    var ref=span.nextSibling;
-    for(var i=0;i<kids.length;i++)parent.insertBefore(kids[i],ref);
-    parent.removeChild(span);
-    if(kids.length){
-      var nr=document.createRange();
-      nr.setStartBefore(kids[0]);
-      nr.setEndAfter(kids[kids.length-1]);
-      _lastRange=nr;
-    }
-  }catch(e){}
-  _fbMarkSpan=null;
-}
-/* 浮条内按钮 mousedown 拦截焦点转移：点击 B/⟲/🎨/➤ 时编辑器不失焦，选区高亮保留。
-   （用 mousedown 而非 pointerdown——mousedown preventDefault 只阻止焦点转移，不阻止 click 触发） */
-document.addEventListener('mousedown',function(e){
-  var fb=document.getElementById('fb');
-  if(fb&&fb.contains(e.target)){
-    var btn=e.target.closest?e.target.closest('button,.fclr-pop i'):null;
-    if(btn)e.preventDefault();
-  }
-});
-/* 指令框聚焦 → 标记选中文字；失焦 → 移除标记 */
-document.addEventListener('focusin',function(e){
-  if(e.target&&e.target.id==='fbCmdInp')markFbSel();
-});
-document.addEventListener('focusout',function(e){
-  if(e.target&&e.target.id==='fbCmdInp')unmarkFbSel();
-});
-function executeFbCmd(cmd){
-  if(!cmd)return;
-  unmarkFbSel();
-  restoreSel();
-  try{
-    if(cmd.fn==='fbFmt'){fbFmt(cmd.arg);}
-    else if(cmd.fn==='fbFmtBlock'){fbFmtBlock(cmd.arg);}
-    else if(cmd.fn==='fbColor'){fbColor(cmd.arg);}
-    else if(cmd.fn==='fbFont'){fbFont(cmd.arg);}
-    else if(cmd.fn==='fbClearFmt'){fbClearFmt();}
-    else if(cmd.fn==='fbUndo'){fbUndo();}
-    else if(cmd.fn==='fbRevert'){fbRevert();}
-    toast('✅ 已执行：'+(cmd.label||''));
-  }catch(e){toast('执行失败，请换个说法');}
-}
-function submitFbCmd(){
-  var inp=document.getElementById('fbCmdInp');
-  if(!inp)return;
-  var raw=inp.value;
-  var cmd=parseFbCmd(raw);
-  if(cmd){executeFbCmd(cmd);inp.value='';}
-  else{
-    toast('没听懂，试试：加粗/变红/标题/引用/大字');
-  }
-}
-/* 指令框回车执行 */
-document.addEventListener('keydown',function(e){
-  var inp=document.getElementById('fbCmdInp');
-  if(!inp||document.activeElement!==inp)return;
-  if(e.key==='Enter'||e.key==='Go'){e.preventDefault();submitFbCmd();}
-});
-/* 颜色小面板开关 */
+/* v4：颜色小面板开关 */
 function toggleColorMini(){
   var p=document.getElementById('fclrPop');
   if(p){p.style.display=p.style.display==='none'?'flex':'none';}
@@ -1950,56 +1821,24 @@ document.addEventListener('pointerdown',function(e){
     p.style.display='none';
   }
 });
-/* ===== v3 语音输入：Web Speech API（安卓 Chrome 效果好；iPhone Safari 较弱则提示打字） ===== */
-var _fbRec=null,_fbRecOn=false;
-function fbSpeak(){
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){toast('当前浏览器不支持语音，请打字输入');return;}
-  if(_fbRecOn){try{_fbRec.stop();}catch(e){}_fbRecOn=false;return;}
-  var rec=new SR();
-  _fbRec=rec;
-  rec.lang='zh-CN';rec.interimResults=false;rec.maxAlternatives=1;
-  rec.onstart=function(){
-    _fbRecOn=true;
-    var mic=document.getElementById('fbMic');
-    if(mic)mic.classList.add('rec');
-    toast('🎤 请说话…（说完自动识别）');
-  };
-  rec.onresult=function(e){
-    var txt='';
-    for(var i=0;i<e.results.length;i++){if(e.results[i][0])txt+=e.results[i][0].transcript;}
-    var inp=document.getElementById('fbCmdInp');
-    if(inp)inp.value=txt;
-    var cmd=parseFbCmd(txt);
-    if(cmd){executeFbCmd(cmd);if(inp)inp.value='';toast('✅ 已执行：'+(cmd.label||''));}
-    else{toast('听成："'+txt+'"，没匹配到指令，可手动修正');}
-  };
-  rec.onerror=function(e){
-    _fbRecOn=false;
-    var mic=document.getElementById('fbMic');
-    if(mic)mic.classList.remove('rec');
-    if(e.error==='not-allowed')toast('麦克风权限被拒，请用打字');
-    else if(e.error==='no-speech')toast('没听到声音，请再试一次');
-    else toast('语音识别失败，请打字');
-  };
-  rec.onend=function(){
-    _fbRecOn=false;
-    var mic=document.getElementById('fbMic');
-    if(mic)mic.classList.remove('rec');
-  };
-  try{rec.start();}catch(e){toast('语音启动失败，请打字');}
-}
-/* ===== v3 取消选择 → 浮条自动收起 ===== */
+/* v4：浮条内按钮 mousedown 拦截焦点转移——点 B/⟲/🎨 等按钮时编辑器不失焦，
+   选区高亮保留，且不影响 click 触发（mousedown preventDefault 只阻止焦点转移） */
+document.addEventListener('mousedown',function(e){
+  var fb=document.getElementById('fb');
+  if(fb&&fb.contains(e.target)){
+    var btn=e.target.closest?e.target.closest('button,.fclr-pop i'):null;
+    if(btn)e.preventDefault();
+  }
+});
+/* v4：取消选择 → 浮条自动收起（用户明确要求：没选中就不出现/退出） */
 function fbAutoHide(){
   var fb=document.getElementById('fb');
   if(!fb||!fb.classList.contains('show'))return;
-  /* 焦点在浮条内（指令框输入中 / 按钮按下 / 语音中）→ 不收起 */
+  /* 焦点在浮条内（按钮按下/色板打开）→ 不收起 */
   var ae=document.activeElement;
   if(ae&&ae.closest&&ae.closest('#fb'))return;
-  if(_fbRecOn)return;
   var sel=window.getSelection();
   if(!sel||sel.rangeCount===0||sel.isCollapsed){
-    unmarkFbSel();
     _lastRange=null;_fbKey=null;_fbDraged=false;
     fb.classList.remove('show');
   }
