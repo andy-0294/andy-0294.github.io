@@ -102,7 +102,7 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
 .ynote .ytitle-row{display:flex;align-items:center;gap:6px}
 .ynote .ytitle-row .ytitle{flex:1;min-width:0;width:auto;padding:6px 2px;font-size:15px;font-weight:600;color:var(--ink);border:none;outline:none;background:transparent;box-shadow:none;appearance:none;-webkit-appearance:none;font-family:inherit;border-radius:0}
 .ynote .ytitle::placeholder{color:var(--hint);font-weight:400}
-.ynote .ybody{width:100%;border:none;background:transparent;font:inherit;color:#374151;outline:none;min-height:120px;margin-top:8px;line-height:1.8;padding:6px 8px;border-radius:8px;transition:background .15s}
+.ynote .ybody{width:100%;border:none;background:transparent;font:inherit;color:#374151;outline:none;min-height:120px;margin-top:8px;line-height:1.8;padding:6px 8px;border-radius:8px;transition:background .15s;-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 .ynote .ybody:focus{background:#fafbfc}
 .ynote .ybody:empty:before,.ynote .ybody.focused-empty:before{content:attr(placeholder);color:var(--hint)}
 .ynote:hover{box-shadow:0 2px 8px rgba(0,0,0,.05)}
@@ -138,7 +138,7 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
 .fb-fold{border:none;background:transparent;color:var(--mut);font-size:12px;cursor:pointer;padding:2px 7px;border-radius:6px;line-height:1;font-family:inherit;transition:background .12s,color .12s}
 .fb-fold:hover{background:#f3ede0;color:var(--ink)}
 .fb-grid{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
-.fb button{min-width:34px;height:30px;padding:0 5px;border:1px solid transparent;background:transparent;border-radius:7px;color:var(--ink);font-size:13px;cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s;line-height:1;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.fb button{min-width:34px;height:30px;padding:0 5px;border:1px solid transparent;background:transparent;border-radius:7px;color:var(--ink);font-size:13px;cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s;line-height:1;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .fb button:hover{background:#f3ede0;border-color:#d8c9a8}
 .fb button:active{transform:scale(.92)}
 .fb button .fi{font-size:14px;line-height:1}
@@ -240,7 +240,7 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
 .nb-card::before{content:"";position:absolute;left:22px;top:16px;bottom:16px;width:2px;background:repeating-linear-gradient(180deg,#e0cfae 0 5px,transparent 5px 11px)}
 .nb-theme{width:100%;border:none;background:transparent;font-size:15px;font-weight:600;color:var(--ink);outline:none;font-family:inherit;padding:6px 2px;margin:0}
 .nb-theme::placeholder{color:#b7aa8c;font-weight:400}
-.nb-card .nb-body{width:100%;min-height:300px;border:none;background-image:repeating-linear-gradient(#f0e9d8 0 1px,transparent 1px 34px);background-position:0 7px;line-height:34px;color:#4a4035;font:inherit;outline:none;padding:4px 8px 10px 10px;margin:0;border-radius:0}
+.nb-card .nb-body{width:100%;min-height:300px;border:none;background-image:repeating-linear-gradient(#f0e9d8 0 1px,transparent 1px 34px);background-position:0 7px;line-height:34px;color:#4a4035;font:inherit;outline:none;padding:4px 8px 10px 10px;margin:0;border-radius:0;-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 .nb-card .nb-body:focus{background-color:#fffdf7}
 .nb-card .nb-body:empty:before{content:attr(placeholder);color:#c4b797}
 .nb-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px;border-top:1px solid #f0e7d2;margin-top:10px}
@@ -257,14 +257,21 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
   #navball{display:flex}
   #navmask.on{display:block;position:fixed;inset:0;background:rgba(60,45,30,.3);z-index:45}
   .content{padding:16px}
-  /* 移动端：浮条按钮加大，更好点按 */
-  .fb button{min-width:34px;height:34px;padding:0 8px;font-size:14px}
-  .fb .fclr{max-width:132px;gap:8px}
-  .fb .fclr i{width:22px;height:22px;border-width:2px}
+  /* 移动端：浮条按钮加大到触控标准 44px，更好点按 */
+  .fb button{min-width:44px;height:42px;padding:0 8px;font-size:14px}
+  .fb .fclr{max-width:150px;gap:9px}
+  .fb .fclr i{width:26px;height:26px;border-width:2px}
 }
 /* 装饰：问候 / 天气 / 箴言 */
 .topbar{background:linear-gradient(180deg,#ffffff 0%,#f7f9fb 100%)}
 .ttlwrap{flex:1;min-width:0}
+/* 顶部常驻同步状态指示（手机端也能看到） */
+.topsync{display:flex;align-items:center;gap:5px;background:#f6f2e9;border:1px solid #ece2d1;border-radius:14px;padding:4px 10px;cursor:default;user-select:none;-webkit-user-select:none}
+.topsync .sdot{width:8px;height:8px;border-radius:50%;background:#c9c0b0;flex:0 0 8px;transition:background .2s}
+.topsync .sdot.ok{background:#0f9d72}
+.topsync .sdot.sync{background:#cf8a1e;animation:synpulse 1s ease-in-out infinite}
+.topsync .sdot.err{background:#d6452f}
+.topsync-txt{font-size:11px;color:#8a7d6c;white-space:nowrap}
 .greet{margin-left:auto;text-align:right;color:var(--mut);line-height:1.5;user-select:none}
 .greet .g-word{font-size:16px;font-weight:600;color:var(--ink)}
 .greet .g-date{font-size:12px}
@@ -372,6 +379,7 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
     <header class="topbar">
       <button id="burger" onclick="toggleNav()">☰</button>
       <div class="ttlwrap"><h1 id="ttl">主趋势</h1><div class="sub" id="sub"></div></div>
+      <div class="topsync" id="topsync" title="云端同步状态"><span class="sdot" id="topsyncDot"></span><span class="topsync-txt" id="topsyncTxt">同步中…</span></div>
       <div class="greet" id="greet"></div>
     </header>
     <div class="content" id="view"></div>
@@ -473,8 +481,8 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
     <div class="wel">
       <h3>🌿 欢迎来到「知极 · 春秋作」</h3>
       <div class="wel-body">
-        <b>你的笔记只存在这台设备上</b>，离线可用、没有云端同步。<br><br>
-        🔐 重要：换手机、清缓存、换浏览器前，<b>先点侧栏「导出备份」</b>，把文件发到新设备后「从备份导入」即可完整迁移。<br><br>
+        <b>你的笔记已开启云端同步</b>，自动存到你的 GitHub 私人仓库，换设备/清缓存都不怕丢。<br><br>
+        ☁️ 打开应用自动拉取最新数据；编辑后 2.5 秒自动上传，多设备自动互通。顶部圆点 = 同步状态（绿=已同步 / 黄=同步中 / 红=失败）。<br><br>
         📱 想用起来像 App：在浏览器菜单里选<b>「添加到主屏幕」</b>，之后从桌面图标直接打开。<br><br>
         ✍️ 选中文字可弹出格式条；顶部「随手记」一句话自动入库。
       </div>
@@ -668,9 +676,12 @@ async function ghApi(path, opts){
   return resp.json();
 }
 function setSync(status, txt){
-  var d=document.getElementById('syncDot'), st=document.getElementById('syncTxt');
-  if(d)d.className='sdot'+(status==='ok'?' ok':status==='sync'?' sync':status==='err'?' err':'');
-  if(st&&txt!==undefined)st.textContent=txt;
+  /* 顶部常驻指示 + 侧栏指示 联动更新 */
+  [['syncDot','syncTxt'],['topsyncDot','topsyncTxt']].forEach(function(pair){
+    var d=document.getElementById(pair[0]), st=document.getElementById(pair[1]);
+    if(d)d.className='sdot'+(status==='ok'?' ok':status==='sync'?' sync':status==='err'?' err':'');
+    if(st&&txt!==undefined)st.textContent=txt;
+  });
 }
 /* 拉取云端：若云端时间戳更新，则以云端为准覆盖本地 */
 async function syncPull(){
@@ -1676,29 +1687,43 @@ function saveSel(){
   _lastRange=r.cloneRange();
   showFloat();
 }
-/* 点击浮条按钮：preventDefault 阻止按下时清空选区/聚焦按钮（否则选区丢失，格式命令落空）；
-   点击浮条之外：浮条驻留，不做任何事（由 ▾ 收起按钮主动取消） */
+/* 点击浮条按钮：先保存选区快照（按钮按下会丢选区），但绝不 preventDefault——
+   preventDefault 会阻止 click 事件触发，导致移动端按键不灵敏（实测教训）。
+   点击浮条之外（非编辑器区）：收起浮条，符合"点外面=取消"习惯。 */
 document.addEventListener('pointerdown',function(e){
   var fb=document.getElementById('fb');
   if(fb&&fb.contains(e.target)){
-    e.preventDefault();
     var sel=window.getSelection();
     if(sel&&sel.rangeCount&&!sel.isCollapsed&&inEditor(sel.getRangeAt(0).commonAncestorContainer)){
       _lastRange=sel.getRangeAt(0).cloneRange();
     }
+  }else{
+    /* 浮条外：若不在编辑器内 → 收起（取消）；在编辑器内则驻留等待下次选中 */
+    if(fb&&fb.classList.contains('show')&&!inEditor(e.target)){
+      _lastRange=null;_fbKey=null;_fbDraged=false;
+      fb.classList.remove('show');
+    }
   }
-  /* 浮条外：驻留，不收起 */
 });
 function restoreSel(){
   if(!_lastRange)return;
   try{
-    /* 先把焦点还给选区所在的编辑区（否则点击浮条按钮后 activeElement 是按钮，
-       document.execCommand 格式命令会因不在可编辑上下文中而失效） */
-    var el=_lastRange.startContainer.nodeType===3?_lastRange.startContainer.parentNode:_lastRange.startContainer;
+    var sc=_lastRange.startContainer;
+    var el=sc&&sc.nodeType===3?sc.parentNode:sc;
     while(el&&el.nodeType===1&&!el.isContentEditable)el=el.parentNode;
     if(el&&el.isContentEditable&&document.activeElement!==el){try{el.focus({preventScroll:true});}catch(e){try{el.focus();}catch(e2){}}}
     var sel=window.getSelection();sel.removeAllRanges();sel.addRange(_lastRange);
-  }catch(e){}
+  }catch(e){
+    /* 选区快照已失效（如编辑区被重渲染）→ 尝试用当前聚焦的可编辑区兜底 */
+    try{
+      var ae=document.activeElement;
+      if(ae&&ae.isContentEditable){
+        var sel2=window.getSelection();
+        var r2=document.createRange();r2.selectNodeContents(ae);r2.collapse(false);
+        sel2.removeAllRanges();sel2.addRange(r2);
+      }
+    }catch(e2){}
+  }
 }
 function showFloat(){
   var fb=document.getElementById('fb');if(!fb||!_lastRange)return;
@@ -1754,8 +1779,24 @@ window.addEventListener('resize',function(){});
 /* 浮条操作：先 restoreSel 找回选区，再 execCommand——onclick 内同步执行，不依赖 preventDefault */
 function fbFmt(cmd){restoreSel();document.execCommand(cmd,false,null);saveSel();}
 function fbFmtBlock(tag){restoreSel();document.execCommand('formatBlock',false,tag);saveSel();}
-function fbUndo(){restoreSel();document.execCommand('undo',false,null);saveSel();}
-function fbRedo(){restoreSel();document.execCommand('redo',false,null);saveSel();}
+/* 撤销/重做：优先用 execCommand（浏览器原生），失败则降级到"还原基线"（undoItem） */
+function fbUndo(){
+  restoreSel();
+  var ok=false;
+  try{ok=document.execCommand('undo',false,null);}catch(e){ok=false;}
+  if(!ok){/* 浏览器不支持原生 undo → 用编辑基线还原整条 */
+    var el=document.querySelector('.ybody:focus, .nb-body:focus');
+    if(el&&el.dataset&&el.dataset.mod&&el.dataset.id){undoItem(el.dataset.mod,el.dataset.id);}
+  }
+  saveSel();
+}
+function fbRedo(){
+  restoreSel();
+  var ok=false;
+  try{ok=document.execCommand('redo',false,null);}catch(e){ok=false;}
+  if(!ok){toast('重做不可用：请手动调整');}
+  saveSel();
+}
 function fbColor(c){restoreSel();document.execCommand('foreColor',false,c);saveSel();}
 function fbClearFmt(){restoreSel();document.execCommand('removeFormat',false,null);saveSel();}
 var _fbFontLevel=3;
