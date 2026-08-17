@@ -1723,9 +1723,15 @@ function saveSel(){
 /* 点击浮条按钮：先保存选区快照（按钮按下会丢选区），但绝不 preventDefault——
    preventDefault 会阻止 click 事件触发，导致移动端按键不灵敏（实测教训）。
    点击浮条之外（非编辑器区）：收起浮条，符合"点外面=取消"习惯。 */
+var _fbClickGuard=false,_fbGuardT=null; // 移动端点击保护：浮条内按下后 350ms 内禁止自动收起
 document.addEventListener('pointerdown',function(e){
   var fb=document.getElementById('fb');
   if(fb&&fb.contains(e.target)){
+    /* 移动端：浏览器在 click 前先转移焦点+collapse 选区，会误触发 fbAutoHide 收起浮条。
+       设保护窗口，让 click 正常执行格式命令后再恢复选区判定 */
+    _fbClickGuard=true;
+    clearTimeout(_fbGuardT);
+    _fbGuardT=setTimeout(function(){_fbClickGuard=false;},350);
     var sel=window.getSelection();
     if(sel&&sel.rangeCount&&!sel.isCollapsed&&inEditor(sel.getRangeAt(0).commonAncestorContainer)){
       _lastRange=sel.getRangeAt(0).cloneRange();
@@ -1876,6 +1882,8 @@ document.addEventListener('mousedown',function(e){
 function fbAutoHide(){
   var fb=document.getElementById('fb');
   if(!fb||!fb.classList.contains('show'))return;
+  /* 移动端点击保护窗口内（正在按浮条按钮，click 还没执行）→ 不收起，防闪退 */
+  if(_fbClickGuard)return;
   /* 焦点在浮条内（按钮按下/色板打开）→ 不收起 */
   var ae=document.activeElement;
   if(ae&&ae.closest&&ae.closest('#fb'))return;
