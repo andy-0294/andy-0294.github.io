@@ -678,7 +678,9 @@ function setSync(status, txt){
     if(st&&txt!==undefined)st.textContent=txt;
   });
 }
-/* 拉取云端：若云端时间戳更新，则以云端为准覆盖本地 */
+/* 拉取云端：以时间戳判定新旧——云端新则以云端为准覆盖本地；
+   本地新且本地有"未同步编辑"（zj_dirty）才补推上云。
+   ⚠️ 防误覆盖：仅时间戳虚高（如旧版刷新污染）但无真实编辑时，绝不补推覆盖云端 */
 async function syncPull(){
   setSync('sync','同步中…');
   try{
@@ -686,10 +688,22 @@ async function syncPull(){
     _fileSha=r.sha;
     var remote=JSON.parse(b64d(r.content));
     var rts=remote.updatedAt||0, lts=STATE.updatedAt||0;
-    if(remote&&remote.mods&&rts>lts){
-      STATE=remote;
-      saveLocalNow(true); // 保留云端时间戳，避免本地时钟偏差污染比较
-      render();
+    var dirty=false;
+    try{dirty=localStorage.getItem('zj_dirty')==='1';}catch(e){}
+    if(remote&&remote.mods){
+      if(rts>lts){
+        STATE=remote;
+        saveLocalNow(true); // 保留云端时间戳，避免本地时钟偏差污染比较
+        render();
+      }else if(lts>rts&&dirty){
+        /* 本地比云端新且有未同步的真实编辑 → 自动补推，保证数据上云 */
+        syncPush();
+      }else{
+        /* 本地时间戳虚高但无真实编辑 → 以云端为准，纠偏本地时间戳 */
+        STATE=remote;
+        saveLocalNow(true);
+        render();
+      }
     }
     setSync('ok','已同步');
   }catch(e){
@@ -708,6 +722,7 @@ async function syncPush(){
     if(_fileSha)body.sha=_fileSha;
     var r=await ghApi('/repos/'+GH_USER+'/'+GH_REPO+'/contents/'+GH_FILE, {method:'PUT', body:JSON.stringify(body)});
     _fileSha=r.content&&r.content.sha;
+    try{localStorage.removeItem('zj_dirty');}catch(e){} // 推送成功 → 清除"未同步"标记
     setSync('ok','已同步');
   }catch(e){
     if(e.message==='HTTP 409'){ await syncPull(); }
@@ -1586,18 +1601,20 @@ function saveLocalNow(keepTs){
     }catch(e2){}
   }
 }
-/* 防抖保存：立即落盘（纯本地，防 400ms 内刷新丢内容）+ 本地版本快照 */
+/* 防抖保存：立即落盘（纯本地，防 400ms 内刷新丢内容）+ 本地版本快照 + 标记"有未同步编辑" */
 function debouncedSave(){
   saveLocalNow();    // 立即落盘，防刷新丢
   pushLocalHistory();
+  try{localStorage.setItem('zj_dirty','1');}catch(e){} // 有未同步的真实编辑
   scheduleSync();
 }
-/* 完整保存：落盘 + 版本快照 + 统计刷新 */
+/* 完整保存：落盘 + 版本快照 + 统计刷新 + 标记"有未同步编辑" */
 function save(){
   if(!STATE)return;
   saveLocalNow();
   pushLocalHistory();
   renderStats();
+  try{localStorage.setItem('zj_dirty','1');}catch(e){}
   scheduleSync();
 }
 /* 结构性变更（删除/新增/恢复/改名/排序）→ 立即保存到本地 */
@@ -1627,9 +1644,11 @@ function loadLocal(){
   if(!STATE.rev)STATE.rev=0;
   renderStats();
 }
-/* 刷新 / 关页 / 切后台：强制把当前内容落盘，绝不丢 */
-window.addEventListener('beforeunload',saveLocalNow);
-window.addEventListener('pagehide',saveLocalNow);
+/* 刷新 / 关页 / 切后台：强制把当前内容落盘，绝不丢。
+   ⚠️ 必须传 true（keepTs）——否则每次刷新都把 updatedAt 刷成"现在"，
+   造成本地时间戳虚高，syncPull 会误判"本地已最新"而不拉取云端新数据（2026-08-17 实测教训） */
+window.addEventListener('beforeunload',function(){saveLocalNow(true);});
+window.addEventListener('pagehide',function(){saveLocalNow(true);});
 function escAttr(s){return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function escHtml(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 /* 清洗富文本：移除脚本/iframe/事件属性/javascript: 链接等危险内容，仅保留排版标签 */
