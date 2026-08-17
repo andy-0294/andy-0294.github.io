@@ -131,23 +131,20 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
 /* 选区浮条：可拖动的浮动编辑窗口（选中文字时弹出） */
 .fb{position:fixed;display:none;z-index:9000;background:#fffdf6;border:1px solid #d8c9a8;border-radius:12px;box-shadow:0 10px 28px rgba(60,40,15,.24);padding:5px;font-family:inherit;max-width:calc(100vw - 12px)}
 .fb.show{display:block}
-.fb-grip{display:flex;align-items:center;gap:6px;padding:2px 4px 6px;border-bottom:1px solid #f0e7d6;margin-bottom:5px;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
-.fb-grip:active{cursor:grabbing}
-.fb-grip-h{font-size:13px;color:var(--mut);letter-spacing:2px;flex:0 0 auto}
-.fb-fold{border:none;background:transparent;color:var(--mut);font-size:12px;cursor:pointer;padding:2px 7px;border-radius:6px;line-height:1;font-family:inherit;transition:background .12s,color .12s}
 .fb-fold:hover{background:#f3ede0;color:var(--ink)}
-.fb-grid{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
 .fb button{min-width:34px;height:30px;padding:0 5px;border:1px solid transparent;background:transparent;border-radius:7px;color:var(--ink);font-size:13px;cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s;line-height:1;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .fb button:hover{background:#f3ede0;border-color:#d8c9a8}
 .fb button:active{transform:scale(.92)}
 .fb button .fi{font-size:14px;line-height:1}
-/* v5：单行精简按钮条（横向滚动不换行；实用功能排前） */
-.fb-grid{display:flex;flex-wrap:nowrap;gap:3px;align-items:center;padding:2px 2px 4px;overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+/* v6：真正单行——⠿手柄 + 按钮 + ▾收起 全在一行，横向滚动不换行；手柄与收起 sticky 固定 */
+.fb-grid{display:flex;flex-wrap:nowrap;gap:3px;align-items:center;padding:2px 2px 4px;overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;scrollbar-width:none;cursor:default}
 .fb-grid::-webkit-scrollbar{display:none}
 .fb-grid .fb-btn{min-width:34px;height:32px;flex:0 0 auto}
 .fb-grid .fb-btn:hover .fi{transform:translateY(-1px)}
-/* ▾ 收起按钮：独立于拖拽手柄区，触控区加大 */
-.fb-fold{border:none;background:transparent;color:var(--mut);font-size:12px;cursor:pointer;padding:4px 9px;border-radius:6px;line-height:1;font-family:inherit;transition:background .12s,color .12s;margin-left:auto;z-index:5;position:relative;pointer-events:auto}
+/* 拖动手柄（嵌在一行最前，小尺寸） */
+.fb-grip-h{font-size:13px;color:var(--mut);letter-spacing:2px;flex:0 0 auto;cursor:grab;user-select:none;-webkit-user-select:none;padding:2px 4px;touch-action:none;position:sticky;left:0;background:#fffdf6;z-index:5}
+/* ▾ 收起按钮（嵌在一行最后，不参与拖动） */
+.fb-fold{border:none;background:transparent;color:var(--mut);font-size:12px;cursor:pointer;padding:4px 7px;border-radius:6px;line-height:1;font-family:inherit;transition:background .12s,color .12s;flex:0 0 auto;margin-left:2px;pointer-events:auto;position:sticky;right:0;background:#fffdf6;z-index:5}
 .fb-fold:hover{background:#f3ede0;color:var(--ink)}
 .fclr-mini{position:relative;display:inline-flex}
 .fclr-pop{position:absolute;left:0;top:calc(100% + 4px);z-index:60;display:flex;flex-wrap:wrap;gap:6px;background:#fffdf6;border:1px solid #e4d9c3;border-radius:10px;box-shadow:0 10px 26px rgba(60,40,15,.2);padding:7px;width:118px}
@@ -392,13 +389,10 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
 </div>
 
 <!-- AI 浮球已移除 -->
-<!-- 选区浮条 v5：单行精简按钮条。实用功能（排版/大小字/颜色）排前；选中弹出、定位选区下方、取消选择自动收起 -->
+<!-- 选区浮条 v6：真正单行。⠿手柄 + 13功能按钮 + ▾收起 全部一行；选中弹出、定位选区下方、取消选择自动收起 -->
 <div class="fb" id="fb">
-  <div class="fb-grip" id="fbGrip">
-    <span class="fb-grip-h" title="按住这里拖动">⠿</span>
-    <button type="button" class="fb-fold" title="收起工具栏" onclick="fbFold()" onpointerdown="event.stopPropagation()">▾</button>
-  </div>
-  <div class="fb-grid">
+  <div class="fb-grid" id="fbGrid">
+    <span class="fb-grip-h" id="fbGrip" title="按住这里拖动">⠿</span>
     <button type="button" class="fb-btn" title="设为标题" onclick="fbFmtBlock('H3')"><span class="fi">H</span></button>
     <button type="button" class="fb-btn" title="引用" onclick="fbFmtBlock('BLOCKQUOTE')"><span class="fi">❝</span></button>
     <button type="button" class="fb-btn" title="无序列表" onclick="fbFmt('insertUnorderedList')"><span class="fi">•</span></button>
@@ -422,6 +416,7 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
     <button type="button" class="fb-btn" title="删除线" onclick="fbFmt('strikeThrough')"><span class="fi"><s>S</s></span></button>
     <button type="button" class="fb-btn" title="撤销上一步" onclick="fbUndo()"><span class="fi">⟲</span></button>
     <button type="button" class="fb-btn" title="清除格式" onclick="fbClearFmt()"><span class="fi">⌫</span></button>
+    <button type="button" class="fb-fold" title="收起工具栏" onclick="fbFold()">▾</button>
   </div>
 </div>
 <div id="toast"></div>
