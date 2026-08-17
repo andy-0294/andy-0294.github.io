@@ -1768,6 +1768,21 @@ function showFloat(){
   var fb=document.getElementById('fb');if(!fb||!_lastRange)return;
   fb.classList.add('show');
   if(!_fbDraged)positionFloat(); // 拖动过则保持当前位置
+  /* 手机端：选中文字后用户要操作工具栏，键盘已无用 → 收起键盘避免遮挡/冲突 */
+  try{
+    if(window.visualViewport&&window.visualViewport.height<window.innerHeight*0.8){
+      var ae=document.activeElement;
+      if(ae&&ae.isContentEditable){
+        /* 收起键盘前先设保护：blur 会触发 selectionchange，防止 fbAutoHide 误收起浮条 */
+        _fbClickGuard=true;
+        clearTimeout(_fbGuardT);
+        _fbGuardT=setTimeout(function(){_fbClickGuard=false;},400);
+        ae.blur();
+        /* 键盘收起后视口变化，稍等再精确定位 */
+        setTimeout(function(){if(!_fbDraged)positionFloat();},150);
+      }
+    }
+  }catch(e){}
 }
 function hideFloat(){var fb=document.getElementById('fb');if(fb)fb.classList.remove('show');}
 function fbFold(){hideFloat();_lastRange=null;_fbKey=null;_fbDraged=false;} // 主动收起；取消选择也会自动收起
@@ -1788,8 +1803,10 @@ function fbFold(){hideFloat();_lastRange=null;_fbKey=null;_fbDraged=false;} // �
   grip.addEventListener('pointermove',function(e){
     if(!drag||!fb)return;
     var nl=ox+e.clientX-sx,nt=oy+e.clientY-sy;
-    nl=Math.max(4,Math.min(nl,window.innerWidth-fb.offsetWidth-4));
-    nt=Math.max(4,Math.min(nt,window.innerHeight-fb.offsetHeight-4));
+    var vTop=viewportTop(), vBottom=viewportBottom();
+    nl=Math.max(4,Math.min(nl,vBottom-vTop-fb.offsetWidth-4));
+    nt=Math.max(4,Math.min(nt,vBottom-fb.offsetHeight-4));
+    if(nt<vTop+4)nt=vTop+4;
     fb.style.left=nl+'px';fb.style.top=nt+'px';
     _fbDraged=true;
   });
@@ -1797,28 +1814,50 @@ function fbFold(){hideFloat();_lastRange=null;_fbKey=null;_fbDraged=false;} // �
   grip.addEventListener('pointerup',endDrag);
   grip.addEventListener('pointercancel',endDrag);
 })();
+/* 可视视口工具：手机上键盘弹出时，visualViewport 才是真实可见区域（window.innerHeight 会被键盘遮挡误判） */
+function viewportTop(){
+  try{var vv=window.visualViewport;if(vv)return vv.offsetTop||0;}catch(e){}
+  return 0;
+}
+function viewportBottom(){
+  try{
+    var vv=window.visualViewport;
+    if(vv&&vv.height<window.innerHeight){return vv.offsetTop+vv.height;} // 键盘弹出 → 底部=键盘上沿
+  }catch(e){}
+  return window.innerHeight;
+}
 function positionFloat(){
   var fb=document.getElementById('fb');if(!fb||!_lastRange||!fb.classList.contains('show'))return;
   var rect=_lastRange.getBoundingClientRect();
   if(rect.width<1&&rect.height<1){hideFloat();return;}
   fb.style.visibility='hidden';
   var fbRect=fb.getBoundingClientRect();
+  var vTop=viewportTop(), vBottom=viewportBottom();
   var left=rect.left+rect.width/2-fbRect.width/2;
-  left=Math.max(8,Math.min(left,window.innerWidth-fbRect.width-8));
+  left=Math.max(8,Math.min(left,vBottom-vTop-fbRect.width-8));
   var top=rect.bottom+8; // 首选：弹在选区正下方，绝不挡字
-  /* 下方放不下 → 弹到选区上方（也绝不挡字）；上下都放不下才贴边兜底 */
-  if(top+fbRect.height>window.innerHeight-8){
+  /* 下方放不下（被键盘/屏幕底部挡住）→ 弹到选区上方（也绝不挡字）；上下都放不下才贴边兜底 */
+  if(top+fbRect.height>vBottom-8){
     top=rect.top-fbRect.height-8;
-    if(top<8){
-      /* 选区在屏幕中部被上下夹击（罕见）→ 优先贴底避免挡字 */
-      top=window.innerHeight-fbRect.height-8;
+    if(top<vTop+8){
+      /* 选区在可视区中部被上下夹击（罕见）→ 优先贴底避免挡字 */
+      top=vBottom-fbRect.height-8;
       if(top<rect.top-fbRect.height-8){top=rect.top-fbRect.height-8;}
     }
   }
-  if(top<8)top=8;
+  if(top<vTop+8)top=vTop+8;
   fb.style.left=left+'px';fb.style.top=top+'px';
   fb.style.visibility='visible';
 }
+/* 键盘弹出/收起（visualViewport 变化）→ 浮条重新定位，避免被输入法遮挡 */
+try{
+  if(window.visualViewport&&window.visualViewport.addEventListener){
+    window.visualViewport.addEventListener('resize',function(){
+      var fb=document.getElementById('fb');
+      if(fb&&fb.classList.contains('show')&&!_fbDraged)positionFloat();
+    });
+  }
+}catch(e){}
 /* 取消选择自动收起 + 重新选中显示，统一由下方 v4 的 selectionchange 处理 */
 window.addEventListener('scroll',function(){},true);
 window.addEventListener('resize',function(){});
