@@ -165,6 +165,8 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
 .fb-mic.rec{background:#d6452f;color:#fff;border-color:#d6452f;animation:synpulse 1s ease-in-out infinite}
 .fb-go{width:34px;height:32px;border:1px solid var(--b1);border-radius:8px;background:var(--b1bg);color:var(--b1);font-size:14px;cursor:pointer;line-height:1;transition:all .15s}
 .fb-go:hover{background:var(--b1);color:#fff}
+/* v3.1：指令框聚焦时给选中文字套的临时高亮（替代消失的原生选区高亮） */
+.fb-sel-hl{background:rgba(207,138,30,.22);border-radius:2px;box-shadow:0 0 0 1px rgba(207,138,30,.16)}
 /* 删除确认弹窗（页面内自定义，任何环境都会弹） */
 .cfm-mask{position:fixed;inset:0;background:rgba(60,45,30,.34);align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(1px)}
 .cfm-box{background:#fffdF8;border:1px solid var(--line);border-radius:14px;padding:22px 24px;max-width:330px;width:86%;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.18)}
@@ -1703,6 +1705,7 @@ document.addEventListener('pointerdown',function(e){
   }else{
     /* 浮条外：若不在编辑器内 → 收起（取消）；在编辑器内则驻留等待下次选中 */
     if(fb&&fb.classList.contains('show')&&!inEditor(e.target)){
+      unmarkFbSel();
       _lastRange=null;_fbKey=null;_fbDraged=false;
       fb.classList.remove('show');
     }
@@ -1734,7 +1737,7 @@ function showFloat(){
   if(!_fbDraged)positionFloat(); // 拖动过则保持当前位置
 }
 function hideFloat(){var fb=document.getElementById('fb');if(fb)fb.classList.remove('show');}
-function fbFold(){hideFloat();_lastRange=null;_fbKey=null;_fbDraged=false;} // 主动收起；取消选择也会自动收起
+function fbFold(){unmarkFbSel();hideFloat();_lastRange=null;_fbKey=null;_fbDraged=false;} // 主动收起；取消选择也会自动收起
 /* 拖动浮条（按住顶部 ⠿ 手柄） */
 (function(){
   var grip=document.getElementById('fbGrip');if(!grip)return;
@@ -1779,10 +1782,11 @@ function positionFloat(){
 window.addEventListener('scroll',function(){},true);
 window.addEventListener('resize',function(){});
 /* 浮条操作：先 restoreSel 找回选区，再 execCommand——onclick 内同步执行，不依赖 preventDefault */
-function fbFmt(cmd){restoreSel();document.execCommand(cmd,false,null);saveSel();}
-function fbFmtBlock(tag){restoreSel();document.execCommand('formatBlock',false,tag);saveSel();}
+function fbFmt(cmd){unmarkFbSel();restoreSel();document.execCommand(cmd,false,null);saveSel();}
+function fbFmtBlock(tag){unmarkFbSel();restoreSel();document.execCommand('formatBlock',false,tag);saveSel();}
 /* 撤销/重做：优先用 execCommand（浏览器原生），失败则降级到"还原基线"（undoItem） */
 function fbUndo(){
+  unmarkFbSel();
   restoreSel();
   var ok=false;
   try{ok=document.execCommand('undo',false,null);}catch(e){ok=false;}
@@ -1799,10 +1803,11 @@ function fbRedo(){
   if(!ok){toast('重做不可用：请手动调整');}
   saveSel();
 }
-function fbColor(c){restoreSel();document.execCommand('foreColor',false,c);saveSel();}
-function fbClearFmt(){restoreSel();document.execCommand('removeFormat',false,null);saveSel();}
+function fbColor(c){unmarkFbSel();restoreSel();document.execCommand('foreColor',false,c);saveSel();}
+function fbClearFmt(){unmarkFbSel();restoreSel();document.execCommand('removeFormat',false,null);saveSel();}
 var _fbFontLevel=3;
 function fbFont(d){
+  unmarkFbSel();
   _fbFontLevel=Math.max(1,Math.min(7,_fbFontLevel+d));
   restoreSel();document.execCommand('fontSize',false,String(_fbFontLevel));saveSel();
 }
@@ -1849,8 +1854,63 @@ function parseFbCmd(raw){
   }
   return null;
 }
+/* ===== v3.1 选区高亮标记：指令框聚焦时，给选中文字套临时高亮（原生高亮在失焦后消失） ===== */
+var _fbMarkSpan=null;
+function markFbSel(){
+  unmarkFbSel();
+  var sel=window.getSelection();
+  if(!sel||sel.rangeCount===0||sel.isCollapsed)return;
+  var r=sel.getRangeAt(0);
+  if(!inEditor(r.commonAncestorContainer))return;
+  try{
+    var span=document.createElement('span');
+    span.className='fb-sel-hl';
+    var frag=r.extractContents();
+    span.appendChild(frag);
+    r.insertNode(span);
+    _fbMarkSpan=span;
+    var nr=document.createRange();
+    nr.selectNodeContents(span);
+    _lastRange=nr;_fbKey=null;
+  }catch(e){}
+}
+function unmarkFbSel(){
+  if(!_fbMarkSpan)return;
+  try{
+    var span=_fbMarkSpan;
+    var parent=span.parentNode;
+    var kids=[];while(span.firstChild)kids.push(span.firstChild);
+    var ref=span.nextSibling;
+    for(var i=0;i<kids.length;i++)parent.insertBefore(kids[i],ref);
+    parent.removeChild(span);
+    if(kids.length){
+      var nr=document.createRange();
+      nr.setStartBefore(kids[0]);
+      nr.setEndAfter(kids[kids.length-1]);
+      _lastRange=nr;
+    }
+  }catch(e){}
+  _fbMarkSpan=null;
+}
+/* 浮条内按钮 mousedown 拦截焦点转移：点击 B/⟲/🎨/➤ 时编辑器不失焦，选区高亮保留。
+   （用 mousedown 而非 pointerdown——mousedown preventDefault 只阻止焦点转移，不阻止 click 触发） */
+document.addEventListener('mousedown',function(e){
+  var fb=document.getElementById('fb');
+  if(fb&&fb.contains(e.target)){
+    var btn=e.target.closest?e.target.closest('button,.fclr-pop i'):null;
+    if(btn)e.preventDefault();
+  }
+});
+/* 指令框聚焦 → 标记选中文字；失焦 → 移除标记 */
+document.addEventListener('focusin',function(e){
+  if(e.target&&e.target.id==='fbCmdInp')markFbSel();
+});
+document.addEventListener('focusout',function(e){
+  if(e.target&&e.target.id==='fbCmdInp')unmarkFbSel();
+});
 function executeFbCmd(cmd){
   if(!cmd)return;
+  unmarkFbSel();
   restoreSel();
   try{
     if(cmd.fn==='fbFmt'){fbFmt(cmd.arg);}
@@ -1939,6 +1999,7 @@ function fbAutoHide(){
   if(_fbRecOn)return;
   var sel=window.getSelection();
   if(!sel||sel.rangeCount===0||sel.isCollapsed){
+    unmarkFbSel();
     _lastRange=null;_fbKey=null;_fbDraged=false;
     fb.classList.remove('show');
   }
