@@ -148,14 +148,20 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
 .fb-fold:hover{background:#f3ede0;color:var(--ink)}
 .fclr-mini{position:relative;display:inline-flex}
 /* 色板：绝对定位在浮条(.fb)内，脱离 fb-grid 滚动容器，避免 overflow 裁剪 */
-.fclr-pop{position:absolute;left:auto;right:auto;top:calc(100% + 4px);z-index:60;display:flex;flex-wrap:wrap;gap:6px;background:#fffdf6;border:1px solid #e4d9c3;border-radius:10px;box-shadow:0 10px 26px rgba(60,40,15,.2);padding:7px;width:118px}
-.fclr-pop i{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid #d8c9a8;display:inline-block;transition:transform .12s;box-sizing:border-box;background:#000}
+.fclr-pop{position:absolute;left:auto;right:auto;top:calc(100% + 4px);z-index:60;display:flex;flex-wrap:wrap;gap:6px;background:#fffdf6;border:1px solid #e4d9c3;border-radius:10px;box-shadow:0 10px 26px rgba(60,40,15,.2);padding:7px;width:172px}
+.fclr-pop i{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid #d8c9a8;display:inline-block;transition:transform .12s;box-sizing:border-box;background:#000}
+.fclr-pop i[fc="#1f2937"]{background:#1f2937}
+.fclr-pop i[fc="#ffffff"]{background:#fff;border-color:#c9bfab}
 .fclr-pop i[fc="#d6452f"]{background:#d6452f}
 .fclr-pop i[fc="#d97706"]{background:#d97706}
+.fclr-pop i[fc="#ca8a04"]{background:#ca8a04}
 .fclr-pop i[fc="#059669"]{background:#059669}
 .fclr-pop i[fc="#0891b2"]{background:#0891b2}
+.fclr-pop i[fc="#2563eb"]{background:#2563eb}
 .fclr-pop i[fc="#6366f1"]{background:#6366f1}
-.fclr-pop i[fc="#8a7d6c"]{background:#8a7d6c}
+.fclr-pop i[fc="#db2777"]{background:#db2777}
+.fclr-pop i[fc="#92400e"]{background:#92400e}
+.fclr-pop i[fc="#6b7280"]{background:#6b7280}
 .fclr-pop i:hover{transform:scale(1.15)}
 /* 删除确认弹窗（页面内自定义，任何环境都会弹） */
 .cfm-mask{position:fixed;inset:0;background:rgba(60,45,30,.34);align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(1px)}
@@ -262,7 +268,7 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
   .fb button{min-width:44px;height:42px;padding:0 8px;font-size:14px}
   .fb-grid .fb-btn{min-width:44px;height:42px}
   .fb-fold{font-size:14px;padding:6px 12px}
-  .fclr-pop{width:150px}
+  .fclr-pop{width:172px}
   .fclr-pop i{width:26px;height:26px}
 }
 /* 装饰：问候 / 天气 / 箴言 */
@@ -412,12 +418,18 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
     <button type="button" class="fb-fold" title="收起工具栏" onclick="fbFold()">▾</button>
   </div>
   <span class="fclr-pop" id="fclrPop" style="display:none">
+    <i fc="#1f2937" title="黑色" onclick="fbColor('#1f2937')"></i>
+    <i fc="#ffffff" title="白色" onclick="fbColor('#ffffff')"></i>
     <i fc="#d6452f" title="红" onclick="fbColor('#d6452f')"></i>
     <i fc="#d97706" title="橙" onclick="fbColor('#d97706')"></i>
+    <i fc="#ca8a04" title="黄" onclick="fbColor('#ca8a04')"></i>
     <i fc="#059669" title="绿" onclick="fbColor('#059669')"></i>
     <i fc="#0891b2" title="青" onclick="fbColor('#0891b2')"></i>
+    <i fc="#2563eb" title="蓝" onclick="fbColor('#2563eb')"></i>
     <i fc="#6366f1" title="紫" onclick="fbColor('#6366f1')"></i>
-    <i fc="#8a7d6c" title="灰" onclick="fbColor('#8a7d6c')"></i>
+    <i fc="#db2777" title="粉" onclick="fbColor('#db2777')"></i>
+    <i fc="#92400e" title="棕" onclick="fbColor('#92400e')"></i>
+    <i fc="#6b7280" title="灰" onclick="fbColor('#6b7280')"></i>
   </span>
 </div>
 <div id="toast"></div>
@@ -685,7 +697,10 @@ function setSync(status, txt){
 /* 拉取云端：以时间戳判定新旧——云端新则以云端为准覆盖本地；
    本地新且本地有"未同步编辑"（zj_dirty）才补推上云。
    ⚠️ 防误覆盖：仅时间戳虚高（如旧版刷新污染）但无真实编辑时，绝不补推覆盖云端 */
+var _syncBusy=false; // 同步锁：防止 pull/push 并发互踩，导致 409 冲突风暴（2026-08-17 实测教训）
 async function syncPull(){
+  if(_syncBusy)return;      // 已有同步在跑 → 跳过本次（防并发风暴）
+  _syncBusy=true;
   setSync('sync','同步中…');
   try{
     var r=await ghApi('/repos/'+GH_USER+'/'+GH_REPO+'/contents/'+GH_FILE);
@@ -700,8 +715,8 @@ async function syncPull(){
         saveLocalNow(true); // 保留云端时间戳，避免本地时钟偏差污染比较
         render();
       }else if(lts>rts&&dirty){
-        /* 本地比云端新且有未同步的真实编辑 → 自动补推，保证数据上云 */
-        syncPush();
+        /* 本地比云端新且有未同步的真实编辑 → 补推上云（内部函数，不受锁限制） */
+        await pushInner();
       }else{
         /* 本地时间戳虚高但无真实编辑 → 以云端为准，纠偏本地时间戳 */
         STATE=remote;
@@ -711,13 +726,15 @@ async function syncPull(){
     }
     setSync('ok','已同步');
   }catch(e){
-    if(e.message==='HTTP 404'){ setSync('ok','云端暂无数据'); await syncPush(); }
+    if(e.message==='HTTP 404'){ setSync('ok','云端暂无数据'); await pushInner(); }
     else if(e.message==='TOKEN_INVALID'){ setSync('err','Token 无效'); }
     else setSync('err','同步失败');
+  }finally{
+    _syncBusy=false;
   }
 }
-/* 推送本地到云端 */
-async function syncPush(){
+/* 推送内部实现（不带锁，供 syncPull 补推 / 公共入口复用） */
+async function pushInner(){
   if(!STATE)return;
   if(!STATE.updatedAt||STATE.updatedAt<=1)STATE.updatedAt=Date.now();
   setSync('sync','同步中…');
@@ -728,16 +745,43 @@ async function syncPush(){
     _fileSha=r.content&&r.content.sha;
     try{localStorage.removeItem('zj_dirty');}catch(e){} // 推送成功 → 清除"未同步"标记
     setSync('ok','已同步');
+    return true;
   }catch(e){
-    if(e.message==='HTTP 409'){ await syncPull(); }
+    if(e.message==='HTTP 409'){
+      /* 冲突（云端被别处更新）：本次放弃推送，拉取最新即可——
+         绝不在这里再触发 pull→push 死循环（实测教训）。未同步编辑保留 zj_dirty，等下次再推 */
+      throw e;
+    }
     else if(e.message==='TOKEN_INVALID'){ setSync('err','Token 无效'); }
     else setSync('err','同步失败');
+    return false;
+  }
+}
+/* 推送本地到云端（公共入口：带锁） */
+async function syncPush(){
+  if(!STATE)return;
+  if(_syncBusy)return;      // 同步锁：防止与 pull 并发互踩
+  _syncBusy=true;
+  try{
+    await pushInner();
+  }catch(e){
+    /* 409 冲突：解锁后拉一次最新，不重推 */
+    _syncBusy=false;
+    await syncPull();
+    return;
+  }finally{
+    _syncBusy=false;
   }
 }
 /* 防抖推送：编辑后 1 秒自动上云（原 2.5s 偏长，PC 改完手机点同步容易撞上未推送的窗口） */
 function scheduleSync(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(syncPush, 1000); }
 /* 手动立即同步：先拉后推；若云端时间戳没变化（可能另一端的推送还没完成）→ 稍等重试一次 */
+var _lastManualSync=0;
 async function syncNow(){
+  /* 手动同步节流：10 秒内最多执行一次，防手滑狂点导致同步风暴 */
+  var now=Date.now();
+  if(now-_lastManualSync<10000){setSync('ok','刚刚同步过');return;}
+  _lastManualSync=now;
   setSync('sync','同步中…');
   var before=STATE&&STATE.updatedAt||0;
   await syncPull();
@@ -754,12 +798,17 @@ function syncInit(){
   try{
     if(!ghToken()){ setSync('','本地模式（未配置 Token）'); return; }
     syncPull();
-    setInterval(syncPull, 15000); // 每 15s 静默拉一次，保证多端接近实时
+    setInterval(syncPull, 20000); // 每 20s 静默拉一次（同步锁防并发风暴）
     /* 切回前台/重新可见 → 立即拉取，体验更实时（手机切回 App 瞬间同步） */
     document.addEventListener('visibilitychange',function(){
       if(document.visibilityState==='visible')syncPull();
     });
-    window.addEventListener('focus',function(){syncPull();});
+    /* PC 端窗口 focus 频繁触发（切窗口/点地址栏等）→ 节流：15s 内最多拉一次 */
+    var _lastFocusSync=0;
+    window.addEventListener('focus',function(){
+      var now=Date.now();
+      if(now-_lastFocusSync>15000){_lastFocusSync=now;syncPull();}
+    });
   }catch(e){}
 }
 
