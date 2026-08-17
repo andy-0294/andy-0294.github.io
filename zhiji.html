@@ -664,6 +664,9 @@ async function ghApi(path, opts){
   var t=ghToken();
   if(!t)throw new Error('NO_TOKEN');
   var resp=await fetch('https://api.github.com'+path, Object.assign({
+    /* cache:'no-store' 强制不命中浏览器缓存——否则 GET 云端数据会拿到旧响应，
+       表现为"点了立即同步还是不同步"（2026-08-17 实测优化） */
+    cache:'no-store',
     headers:{'Authorization':'Bearer '+t,'Accept':'application/vnd.github+json','Content-Type':'application/json'}
   }, opts));
   if(resp.status===401)throw new Error('TOKEN_INVALID');
@@ -730,16 +733,32 @@ async function syncPush(){
     else setSync('err','同步失败');
   }
 }
-/* 防抖推送：编辑后 2.5 秒自动上云 */
-function scheduleSync(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(syncPush, 2500); }
-/* 手动立即同步：先拉后推 */
-async function syncNow(){ await syncPull(); await syncPush(); }
+/* 防抖推送：编辑后 1 秒自动上云（原 2.5s 偏长，PC 改完手机点同步容易撞上未推送的窗口） */
+function scheduleSync(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(syncPush, 1000); }
+/* 手动立即同步：先拉后推；若云端时间戳没变化（可能另一端的推送还没完成）→ 稍等重试一次 */
+async function syncNow(){
+  setSync('sync','同步中…');
+  var before=STATE&&STATE.updatedAt||0;
+  await syncPull();
+  var after=STATE&&STATE.updatedAt||0;
+  if(after<=before){
+    /* 云端数据没变：可能是另一端（如 PC）刚编辑还在防抖推送窗口内 → 等 2.5s 重试拉取 */
+    await new Promise(function(res){setTimeout(res,2500);});
+    await syncPull();
+  }
+  await syncPush();
+}
 /* 启动同步：首次打开自动拉取云端（若有 Token 则自动，无则本地模式） */
 function syncInit(){
   try{
     if(!ghToken()){ setSync('','本地模式（未配置 Token）'); return; }
     syncPull();
-    setInterval(syncPull, 30000); // 每 30s 静默拉一次，保证多端接近实时
+    setInterval(syncPull, 15000); // 每 15s 静默拉一次，保证多端接近实时
+    /* 切回前台/重新可见 → 立即拉取，体验更实时（手机切回 App 瞬间同步） */
+    document.addEventListener('visibilitychange',function(){
+      if(document.visibilityState==='visible')syncPull();
+    });
+    window.addEventListener('focus',function(){syncPull();});
   }catch(e){}
 }
 
