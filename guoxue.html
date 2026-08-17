@@ -51,6 +51,7 @@
   .sent { cursor: pointer; transition: background .15s; border-radius: 3px; padding: 1px 2px; }
   .sent:hover { background: #fff3d6; }
   .sent.active { background: #fbe9c8; }
+  .sent .note-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #d84343; margin-left: 4px; vertical-align: 1px; box-shadow: 0 0 3px rgba(216,67,67,.5); }
   .sent-panel { display: none; margin: 6px 0 12px; padding: 10px 14px; background: #fdfaf3; border: 1px solid var(--orange); border-radius: 8px; }
   .sent-panel.open { display: block; }
   .sent-panel .tags { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -931,7 +932,8 @@ function renderMain() {
     ch.segments.forEach(seg => {
       const annoN = seg.annotations ? seg.annotations.length : 0;
       const noteOn = (seg.note && seg.note.trim()) ? " note-on" : "";
-      html += '<span class="sent" data-seg="' + seg.id + '">' + esc(seg.original) + '</span>' +
+      const segHasNote = !!(seg.note && seg.note.trim());
+      html += '<span class="sent' + (segHasNote ? ' has-note' : '') + '" data-seg="' + seg.id + '">' + esc(seg.original) + (segHasNote ? '<i class="note-dot" title="有笔记"></i>' : '') + '</span>' +
         '<div class="sent-panel" data-panel="' + seg.id + '">' +
           '<div class="tags">' +
             '<span class="tag toggle-tag" data-toggle="anno">注解 ' + annoN + '</span>' +
@@ -977,6 +979,14 @@ function renderMain() {
     ta.addEventListener("input", () => {
       const s = findSeg(book.id, ta.dataset.note);
       if (s) { s.note = ta.value; save(); }
+      const sentEl = main.querySelector('.sent[data-seg="' + ta.dataset.note + '"]');
+      if (sentEl) {
+        const has = !!(s && s.note && s.note.trim());
+        sentEl.classList.toggle('has-note', has);
+        let dot = sentEl.querySelector('.note-dot');
+        if (has && !dot) { dot = document.createElement('i'); dot.className = 'note-dot'; dot.title = '有笔记'; sentEl.appendChild(dot); }
+        else if (!has && dot) dot.remove();
+      }
     });
   });
 }
