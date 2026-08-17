@@ -695,34 +695,81 @@ function setSync(status, txt){
     if(st&&txt!==undefined)st.textContent=txt;
   });
 }
-/* 拉取云端：以时间戳判定新旧——云端新则以云端为准覆盖本地；
-   本地新且本地有"未同步编辑"（zj_dirty）才补推上云。
-   ⚠️ 防误覆盖：仅时间戳虚高（如旧版刷新污染）但无真实编辑时，绝不补推覆盖云端 */
+/* ===== 逐条合并（跨设备同时编辑不丢数据）：以条目/笔记的 upd 时间戳裁决"谁新谁赢" ===== */
+function mergeState(local, remote){
+  var mods=[];
+  var rMap={},lMap={};
+  (remote.mods||[]).forEach(function(m){rMap[m.id]=m;});
+  (local.mods||[]).forEach(function(m){lMap[m.id]=m;});
+  Object.keys(rMap).forEach(function(id){
+    var rm=rMap[id], lm=lMap[id];
+    mods.push(lm?mergeMod(rm,lm):rm);
+  });
+  Object.keys(lMap).forEach(function(id){
+    if(!rMap[id])mods.push(lMap[id]); // 本地独有的模块（另一端新建）→ 保留
+  });
+  return {mods:mods, updatedAt:Math.max(remote.updatedAt||0,local.updatedAt||0), rev:Math.max(remote.rev||0,local.rev||0)};
+}
+function mergeMod(rm,lm){
+  var out={};Object.keys(rm).forEach(function(k){out[k]=rm[k];});
+  if(rm.type==='note'){
+    out.books=mergeNoteBooks(rm.books||[],lm.books||[]); // 笔记簿 + 内部笔记双层合并
+  }else{
+    out.items=mergeByIdUpd(rm.items||[],lm.items||[]);
+  }
+  return out;
+}
+/* 通用逐条合并：id 为键，upd 大者赢（upd 缺失视为 0，旧数据不覆盖新数据） */
+function mergeByIdUpd(rArr,lArr){
+  var map={};
+  (rArr||[]).forEach(function(it){map[it.id]=it;});
+  (lArr||[]).forEach(function(it){
+    var r=map[it.id];
+    if(!r){map[it.id]=it;return;}
+    if((it.upd||0)>(r.upd||0))map[it.id]=it;
+  });
+  return Object.keys(map).map(function(k){return map[k];});
+}
+/* 笔记簿合并：先合并 books（id 级），再对每个 book 内部 notes 逐条合并 */
+function mergeNoteBooks(rBooks,lBooks){
+  var bMap={};
+  (rBooks||[]).forEach(function(b){bMap[b.id]=b;});
+  (lBooks||[]).forEach(function(b){
+    var rb=bMap[b.id];
+    if(!rb){bMap[b.id]=b;return;}
+    var nMap={};
+    (rb.notes||[]).forEach(function(n){nMap[n.id]=n;});
+    (b.notes||[]).forEach(function(n){
+      var rn=nMap[n.id];
+      if(!rn){nMap[n.id]=n;return;}
+      if((n.upd||0)>(rn.upd||0))nMap[n.id]=n;
+    });
+    bMap[b.id]=Object.assign({},rb,{notes:Object.keys(nMap).map(function(k){return nMap[k];})});
+  });
+  return Object.keys(bMap).map(function(k){return bMap[k];});
+}
+/* 拉取云端：合并而非整库覆盖——两端同时编辑不同内容时互不丢失（upd 逐条裁决） */
 var _syncBusy=false; // 同步锁：防止 pull/push 并发互踩，导致 409 冲突风暴（2026-08-17 实测教训）
 async function syncPull(){
   if(_syncBusy)return;      // 已有同步在跑 → 跳过本次（防并发风暴）
   _syncBusy=true;
-  setSync('sync','同步中…');
+  setSync('sync','保存中…');
   try{
     var r=await ghApi('/repos/'+GH_USER+'/'+GH_REPO+'/contents/'+GH_FILE);
     _fileSha=r.sha;
     var remote=JSON.parse(b64d(r.content));
-    var rts=remote.updatedAt||0, lts=STATE.updatedAt||0;
+    var lts=STATE.updatedAt||0;
     var dirty=false;
     try{dirty=localStorage.getItem('zj_dirty')==='1';}catch(e){}
     if(remote&&remote.mods){
-      if(rts>lts){
-        STATE=remote;
-        saveLocalNow(true); // 保留云端时间戳，避免本地时钟偏差污染比较
-        render();
-      }else if(lts>rts&&dirty){
-        /* 本地比云端新且有未同步的真实编辑 → 补推上云（内部函数，不受锁限制） */
+      /* 合并：无论哪端新，逐条取 upd 大者 → 两端编辑都不丢 */
+      var merged=mergeState(STATE,remote);
+      STATE=merged;
+      saveLocalNow(true);
+      render();
+      /* 本地有未保存编辑 → 合并后补推上云（合并已含本地内容，推送即两端合一） */
+      if(dirty){
         await pushInner();
-      }else{
-        /* 本地时间戳虚高但无真实编辑 → 以云端为准，纠偏本地时间戳 */
-        STATE=remote;
-        saveLocalNow(true);
-        render();
       }
     }
     setSync('ok','已保存');
@@ -2040,7 +2087,7 @@ function afterFmt(){
   if(el.classList&&el.classList.contains('ybody')){
     var mod=el.dataset.mod,id=el.dataset.id;
     var item=itemsOf(mod).find(function(x){return x.id===id;});
-    if(item){item.content=el.innerHTML;debouncedSave();}
+    if(item){item.content=el.innerHTML;item.upd=Date.now();debouncedSave();} // 排版改动也记 upd，供跨端合并裁决
     if(el.classList.contains('nb-body')&&el.closest('.nb-card'))updateNoteCount();
     scheduleRenumber(el); // 排版后也重排序号
   }
