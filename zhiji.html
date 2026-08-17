@@ -379,16 +379,16 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
         <button onclick="exportData()">⬇ 导出备份</button>
       </div>
       <div class="dailyquote" id="dailyquote"></div>
-      <div class="syncline"><span class="sdot" id="syncDot"></span><span id="syncTxt">同步中…</span></div>
-      <button type="button" class="syncnow" onclick="syncNow()">🔄 立即同步</button>
-      <div class="localhint">数据存 GitHub 云端 · 多设备自动互通</div>
+      <div class="syncline"><span class="sdot" id="syncDot"></span><span id="syncTxt">点「保存」上传云端</span></div>
+      <button type="button" class="syncnow" onclick="syncNow()">💾 保存到云端</button>
+      <div class="localhint">数据存 GitHub 云端 · 手动保存（版本存档双保险）</div>
     </div>
   </aside>
   <main class="main">
     <header class="topbar">
       <button id="burger" onclick="toggleNav()">☰</button>
       <div class="ttlwrap"><h1 id="ttl">主趋势</h1><div class="sub" id="sub"></div></div>
-      <div class="topsync" id="topsync" title="云端同步状态"><span class="sdot" id="topsyncDot"></span><span class="topsync-txt" id="topsyncTxt">同步中…</span></div>
+      <div class="topsync" id="topsync" title="云端保存状态"><span class="sdot" id="topsyncDot"></span><span class="topsync-txt" id="topsyncTxt">未保存</span></div>
       <div class="greet" id="greet"></div>
     </header>
     <div class="content" id="view"></div>
@@ -489,8 +489,9 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
     <div class="wel">
       <h3>🌿 欢迎来到「知极 · 春秋作」</h3>
       <div class="wel-body">
-        <b>你的笔记已开启云端同步</b>，自动存到你的 GitHub 私人仓库，换设备/清缓存都不怕丢。<br><br>
-        ☁️ 打开应用自动拉取最新数据；编辑后 2.5 秒自动上传，多设备自动互通。顶部圆点 = 同步状态（绿=已同步 / 黄=同步中 / 红=失败）。<br><br>
+        <b>你的笔记已开启云端保存</b>，数据存到你的 GitHub 私人仓库，换设备/清缓存都不怕丢。<br><br>
+        💾 编辑后点侧栏「保存到云端」即可上传，像 WPS 保存一样简单；顶部圆点 = 保存状态（绿=已保存 / 黄=未保存 / 红=失败）。<br><br>
+        🕐 另有「版本存档」自动留本地快照，双保险更安心。<br><br>
         📱 想用起来像 App：在浏览器菜单里选<b>「添加到主屏幕」</b>，之后从桌面图标直接打开。<br><br>
         ✍️ 选中文字可弹出格式条；顶部「随手记」一句话自动入库。
       </div>
@@ -666,7 +667,7 @@ function pushLocalHistory(){
 var GH_USER='andy-0294', GH_REPO='notes-data', GH_FILE='zhiji.json';
 var DEFAULT_TOKEN=['ghp_','u5jEfgbkyHw','CNi1cqOC6fytb','G4yAhE316gs7'].join('');
 var LS_SYNC_CFG='zj_sync_cfg';
-var _fileSha=null, _syncTimer=null;
+var _fileSha=null;
 
 function b64e(s){return btoa(unescape(encodeURIComponent(s)));}
 function b64d(s){return decodeURIComponent(escape(atob(s)));}
@@ -724,11 +725,11 @@ async function syncPull(){
         render();
       }
     }
-    setSync('ok','已同步');
+    setSync('ok','已保存');
   }catch(e){
-    if(e.message==='HTTP 404'){ setSync('ok','云端暂无数据'); await pushInner(); }
+    if(e.message==='HTTP 404'){ setSync('','云端暂无数据'); }
     else if(e.message==='TOKEN_INVALID'){ setSync('err','Token 无效'); }
-    else setSync('err','同步失败');
+    else setSync('err','保存失败');
   }finally{
     _syncBusy=false;
   }
@@ -743,8 +744,8 @@ async function pushInner(){
     if(_fileSha)body.sha=_fileSha;
     var r=await ghApi('/repos/'+GH_USER+'/'+GH_REPO+'/contents/'+GH_FILE, {method:'PUT', body:JSON.stringify(body)});
     _fileSha=r.content&&r.content.sha;
-    try{localStorage.removeItem('zj_dirty');}catch(e){} // 推送成功 → 清除"未同步"标记
-    setSync('ok','已同步');
+    try{localStorage.removeItem('zj_dirty');}catch(e){} // 推送成功 → 清除"未保存"标记
+    setSync('ok','已保存');
     return true;
   }catch(e){
     if(e.message==='HTTP 409'){
@@ -753,7 +754,7 @@ async function pushInner(){
       throw e;
     }
     else if(e.message==='TOKEN_INVALID'){ setSync('err','Token 无效'); }
-    else setSync('err','同步失败');
+    else setSync('err','保存失败');
     return false;
   }
 }
@@ -773,42 +774,31 @@ async function syncPush(){
     _syncBusy=false;
   }
 }
-/* 防抖推送：编辑后 1 秒自动上云（原 2.5s 偏长，PC 改完手机点同步容易撞上未推送的窗口） */
-function scheduleSync(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(syncPush, 1000); }
-/* 手动立即同步：先拉后推；若云端时间戳没变化（可能另一端的推送还没完成）→ 稍等重试一次 */
+/* 手动保存（=同步）：先拉最新，再推本地，一步到位。用户明确要求手动模式（WPS 式保存） */
 var _lastManualSync=0;
 async function syncNow(){
-  /* 手动同步节流：10 秒内最多执行一次，防手滑狂点导致同步风暴 */
+  /* 3 秒节流：防手滑连点（远宽于之前，手动模式不再限制主动保存） */
   var now=Date.now();
-  if(now-_lastManualSync<10000){setSync('ok','刚刚同步过');return;}
+  if(now-_lastManualSync<3000){setSync('ok','已保存');return;}
   _lastManualSync=now;
-  setSync('sync','同步中…');
+  setSync('sync','保存中…');
   var before=STATE&&STATE.updatedAt||0;
   await syncPull();
   var after=STATE&&STATE.updatedAt||0;
   if(after<=before){
-    /* 云端数据没变：可能是另一端（如 PC）刚编辑还在防抖推送窗口内 → 等 2.5s 重试拉取 */
-    await new Promise(function(res){setTimeout(res,2500);});
+    /* 云端数据没变（可能另一端刚编辑还没推送）→ 等 2s 重试拉取一次，保证拿到最新 */
+    await new Promise(function(res){setTimeout(res,2000);});
     await syncPull();
   }
   await syncPush();
+  setSync('ok','已保存 ✓');
+  toast('💾 已保存到云端');
 }
-/* 启动同步：首次打开自动拉取云端（若有 Token 则自动，无则本地模式） */
+/* 启动：首次打开拉取一次云端（保证看到最新数据），此后全部手动同步（点「保存」=同步） */
 function syncInit(){
   try{
     if(!ghToken()){ setSync('','本地模式（未配置 Token）'); return; }
     syncPull();
-    setInterval(syncPull, 20000); // 每 20s 静默拉一次（同步锁防并发风暴）
-    /* 切回前台/重新可见 → 立即拉取，体验更实时（手机切回 App 瞬间同步） */
-    document.addEventListener('visibilitychange',function(){
-      if(document.visibilityState==='visible')syncPull();
-    });
-    /* PC 端窗口 focus 频繁触发（切窗口/点地址栏等）→ 节流：15s 内最多拉一次 */
-    var _lastFocusSync=0;
-    window.addEventListener('focus',function(){
-      var now=Date.now();
-      if(now-_lastFocusSync>15000){_lastFocusSync=now;syncPull();}
-    });
   }catch(e){}
 }
 
@@ -1674,8 +1664,8 @@ function saveLocalNow(keepTs){
 function debouncedSave(){
   saveLocalNow();    // 立即落盘，防刷新丢
   pushLocalHistory();
-  try{localStorage.setItem('zj_dirty','1');}catch(e){} // 有未同步的真实编辑
-  scheduleSync();
+  try{localStorage.setItem('zj_dirty','1');}catch(e){} // 有未保存的真实编辑
+  setSync('sync','未保存'); // 手动模式：编辑后提示需要点「保存」
 }
 /* 完整保存：落盘 + 版本快照 + 统计刷新 + 标记"有未同步编辑" */
 function save(){
@@ -1684,7 +1674,7 @@ function save(){
   pushLocalHistory();
   renderStats();
   try{localStorage.setItem('zj_dirty','1');}catch(e){}
-  scheduleSync();
+  setSync('sync','未保存'); // 手动模式：编辑后提示需要点「保存」
 }
 /* 结构性变更（删除/新增/恢复/改名/排序）→ 立即保存到本地 */
 function structSave(){save();}
