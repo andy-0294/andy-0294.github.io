@@ -147,7 +147,8 @@ body::before{content:'';position:fixed;right:-12px;bottom:-14px;width:300px;heig
 .fb-fold{border:none;background:transparent;color:var(--mut);font-size:12px;cursor:pointer;padding:4px 7px;border-radius:6px;line-height:1;font-family:inherit;transition:background .12s,color .12s;flex:0 0 auto;margin-left:2px;pointer-events:auto;position:sticky;right:0;background:#fffdf6;z-index:5}
 .fb-fold:hover{background:#f3ede0;color:var(--ink)}
 .fclr-mini{position:relative;display:inline-flex}
-.fclr-pop{position:absolute;left:0;top:calc(100% + 4px);z-index:60;display:flex;flex-wrap:wrap;gap:6px;background:#fffdf6;border:1px solid #e4d9c3;border-radius:10px;box-shadow:0 10px 26px rgba(60,40,15,.2);padding:7px;width:118px}
+/* 色板：绝对定位在浮条(.fb)内，脱离 fb-grid 滚动容器，避免 overflow 裁剪 */
+.fclr-pop{position:absolute;left:auto;right:auto;top:calc(100% + 4px);z-index:60;display:flex;flex-wrap:wrap;gap:6px;background:#fffdf6;border:1px solid #e4d9c3;border-radius:10px;box-shadow:0 10px 26px rgba(60,40,15,.2);padding:7px;width:118px}
 .fclr-pop i{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid #d8c9a8;display:inline-block;transition:transform .12s;box-sizing:border-box;background:#000}
 .fclr-pop i[fc="#d6452f"]{background:#d6452f}
 .fclr-pop i[fc="#d97706"]{background:#d97706}
@@ -401,14 +402,6 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
     <button type="button" class="fb-btn" title="放大字号" onclick="fbFont(1)"><span class="fi">A+</span></button>
     <span class="fclr-mini" id="fclrMini">
       <button type="button" class="fb-btn" title="文字颜色" onclick="toggleColorMini()"><span class="fi">🎨</span></button>
-      <span class="fclr-pop" id="fclrPop" style="display:none">
-        <i fc="#d6452f" title="红" onclick="fbColor('#d6452f')"></i>
-        <i fc="#d97706" title="橙" onclick="fbColor('#d97706')"></i>
-        <i fc="#059669" title="绿" onclick="fbColor('#059669')"></i>
-        <i fc="#0891b2" title="青" onclick="fbColor('#0891b2')"></i>
-        <i fc="#6366f1" title="紫" onclick="fbColor('#6366f1')"></i>
-        <i fc="#8a7d6c" title="灰" onclick="fbColor('#8a7d6c')"></i>
-      </span>
     </span>
     <button type="button" class="fb-btn" title="加粗" onclick="fbFmt('bold')"><span class="fi"><b>B</b></span></button>
     <button type="button" class="fb-btn" title="斜体" onclick="fbFmt('italic')"><span class="fi"><i>I</i></span></button>
@@ -418,6 +411,14 @@ body::after{content:'';position:fixed;left:-70px;top:-70px;width:210px;height:21
     <button type="button" class="fb-btn" title="清除格式" onclick="fbClearFmt()"><span class="fi">⌫</span></button>
     <button type="button" class="fb-fold" title="收起工具栏" onclick="fbFold()">▾</button>
   </div>
+  <span class="fclr-pop" id="fclrPop" style="display:none">
+    <i fc="#d6452f" title="红" onclick="fbColor('#d6452f')"></i>
+    <i fc="#d97706" title="橙" onclick="fbColor('#d97706')"></i>
+    <i fc="#059669" title="绿" onclick="fbColor('#059669')"></i>
+    <i fc="#0891b2" title="青" onclick="fbColor('#0891b2')"></i>
+    <i fc="#6366f1" title="紫" onclick="fbColor('#6366f1')"></i>
+    <i fc="#8a7d6c" title="灰" onclick="fbColor('#8a7d6c')"></i>
+  </span>
 </div>
 <div id="toast"></div>
 <div id="cfm" class="cfm-mask" style="display:none" onclick="if(event.target===this)cfmNo()">
@@ -1716,7 +1717,7 @@ function saveSel(){
   var r=sel.getRangeAt(0);
   if(!inEditor(r.commonAncestorContainer))return; // 非编辑器选区不弹浮条
   var k=selKey(r);
-  if(k!==_fbKey){_fbKey=k;_fbDraged=false;} // 选中了新内容→重新定位（清掉拖动标记）
+  if(k!==_fbKey){_fbKey=k;_fbDraged=false;_fbFontLevel=3;} // 选中了新内容→重新定位+字号重置（清掉拖动标记）
   _lastRange=r.cloneRange();
   showFloat();
 }
@@ -1861,9 +1862,20 @@ try{
 /* 取消选择自动收起 + 重新选中显示，统一由下方 v4 的 selectionchange 处理 */
 window.addEventListener('scroll',function(){},true);
 window.addEventListener('resize',function(){});
+/* 浮条操作后收尾：saveSel 重新定位；若手机端键盘又被 restoreSel 的 focus 弹出来了，再收起一次 */
+function fbAfter(){
+  saveSel();
+  try{
+    if(window.visualViewport&&window.visualViewport.height<window.innerHeight*0.8){
+      var ae=document.activeElement;
+      if(ae&&ae.isContentEditable){ae.blur();}
+    }
+  }catch(e){}
+}
 /* 浮条操作：先 restoreSel 找回选区，再 execCommand——onclick 内同步执行，不依赖 preventDefault */
-function fbFmt(cmd){restoreSel();document.execCommand(cmd,false,null);saveSel();}
-function fbFmtBlock(tag){restoreSel();document.execCommand('formatBlock',false,tag);saveSel();}
+/* formatBlock 需带尖括号 <h3>/<blockquote> 才能跨浏览器生效（Chrome/Firefox 要求不一） */
+function fbFmt(cmd){restoreSel();try{document.execCommand('styleWithCSS',false,true);}catch(e){}document.execCommand(cmd,false,null);fbAfter();}
+function fbFmtBlock(tag){restoreSel();try{document.execCommand('styleWithCSS',false,true);}catch(e){}document.execCommand('formatBlock',false,'<'+tag+'>');fbAfter();}
 /* 撤销/重做：优先用 execCommand（浏览器原生），失败则降级到"还原基线"（undoItem） */
 function fbUndo(){
   restoreSel();
@@ -1873,21 +1885,24 @@ function fbUndo(){
     var el=document.querySelector('.ybody:focus, .nb-body:focus');
     if(el&&el.dataset&&el.dataset.mod&&el.dataset.id){undoItem(el.dataset.mod,el.dataset.id);}
   }
-  saveSel();
+  fbAfter();
 }
 function fbRedo(){
   restoreSel();
   var ok=false;
   try{ok=document.execCommand('redo',false,null);}catch(e){ok=false;}
   if(!ok){toast('重做不可用：请手动调整');}
-  saveSel();
+  fbAfter();
 }
-function fbColor(c){restoreSel();document.execCommand('foreColor',false,c);saveSel();}
-function fbClearFmt(){restoreSel();document.execCommand('removeFormat',false,null);saveSel();}
+function fbColor(c){restoreSel();try{document.execCommand('styleWithCSS',false,true);}catch(e){}document.execCommand('foreColor',false,c);/* 选完颜色自动收起色板 */try{var p=document.getElementById('fclrPop');if(p)p.style.display='none';}catch(e){}fbAfter();}
+function fbClearFmt(){restoreSel();document.execCommand('removeFormat',false,null);try{var p=document.getElementById('fclrPop');if(p)p.style.display='none';}catch(e){}fbAfter();}
 var _fbFontLevel=3;
 function fbFont(d){
-  _fbFontLevel=Math.max(1,Math.min(7,_fbFontLevel+d));
-  restoreSel();document.execCommand('fontSize',false,String(_fbFontLevel));saveSel();
+  /* 每次选新文字时字号已重置为 3（见 saveSel）；这里在 3 基础上 ±1，避免越点越大 */
+  var base=3;
+  _fbFontLevel=Math.max(1,Math.min(7,base+d));
+  restoreSel();try{document.execCommand('styleWithCSS',false,true);}catch(e){}
+  document.execCommand('fontSize',false,String(_fbFontLevel));fbAfter();
 }
 function fbRevert(){
   var el=document.querySelector('.ybody:focus, .nb-body:focus');
@@ -1897,10 +1912,34 @@ function fbRevert(){
   }
   hideFloat();
 }
-/* v4：颜色小面板开关 */
+/* v4：颜色小面板开关（色板在 .fb 内绝对定位，JS 算好位置避免被裁剪） */
 function toggleColorMini(){
   var p=document.getElementById('fclrPop');
-  if(p){p.style.display=p.style.display==='none'?'flex':'none';}
+  if(!p)return;
+  if(p.style.display==='flex'){p.style.display='none';return;}
+  p.style.display='flex';
+  /* 定位：弹在 🎨 按钮正下方，若放不下则弹到上方 */
+  var fb=document.getElementById('fb');
+  var mini=document.getElementById('fclrMini');
+  if(fb&&mini){
+    var fr=fb.getBoundingClientRect();
+    var mr=mini.getBoundingClientRect();
+    /* 相对 fb 的坐标 */
+    var relLeft=mr.left-fr.left;
+    var relTop=mr.bottom-fr.top+4;
+    p.style.left=relLeft+'px';
+    p.style.top=relTop+'px';
+    /* 下方放不下 → 弹上方 */
+    var ph=p.offsetHeight||132;
+    if(relTop+ph>fr.height-6){
+      p.style.top=(mr.top-fr.top-ph-4)+'px';
+      if((mr.top-fr.top-ph-4)<6)p.style.top='6px';
+    }
+    /* 超出右缘 → 右对齐 */
+    if(relLeft+p.offsetWidth>fr.width-6){
+      p.style.left=(fr.width-p.offsetWidth-6)+'px';
+    }
+  }
 }
 document.addEventListener('pointerdown',function(e){
   var p=document.getElementById('fclrPop');
