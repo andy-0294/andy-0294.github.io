@@ -805,10 +805,12 @@ async function pushInner(){
     return false;
   }
 }
-/* 推送本地到云端（公共入口：带锁） */
+/* 推送本地到云端（公共入口：带锁 + 排队）。排序/新增/删除等结构性变更立即同步，
+   若上一次推送尚未完成（锁忙），标记待推，锁释放后自动补推，绝不静默丢弃 */
+var _pendingPush=false;
 async function syncPush(){
   if(!STATE)return;
-  if(_syncBusy)return;      // 同步锁：防止与 pull 并发互踩
+  if(_syncBusy){_pendingPush=true;return;} // 锁忙 → 排队，稍后补推
   _syncBusy=true;
   try{
     await pushInner();
@@ -816,9 +818,9 @@ async function syncPush(){
     /* 409 冲突：解锁后拉一次最新，不重推 */
     _syncBusy=false;
     await syncPull();
-    return;
   }finally{
     _syncBusy=false;
+    if(_pendingPush){_pendingPush=false;syncPush();} // 有排队请求 → 补推
   }
 }
 /* 手动保存（=同步）：先拉最新，再推本地，一步到位。用户明确要求手动模式（WPS 式保存） */
@@ -1099,6 +1101,7 @@ var dragEl=null,movedDrag=false,longTimer=null,editedByLong=false,armed=false,by
       STATE.mods.sort(function(a,b){return ids.indexOf(a.id)-ids.indexOf(b.id);});
       dragEl.classList.remove('dragging');
       structSave();
+      syncPush(); // 模块顺序变更：立即推送云端
       toast('已调整模块顺序');
     }else if(dragEl&&armed&&!movedDrag){
       /* 长按浮起后未拖动就松开 → 编辑模块 */
@@ -1294,6 +1297,7 @@ function addItem(mod, content){
   itemsOf(mod).unshift({id:'i'+Date.now(),title:'',content:content||'',upd:Date.now()}); // 新条目默认在最顶端
   rerender(mod);
   structSave(); // 新增立即保存并推送云端
+  syncPush(); // 新增是结构性变更：立即同步，防刷新丢失/乱序
   if(content){
     var b=document.querySelector('#view .ybody');if(b)b.focus();
   } else {
@@ -1339,6 +1343,7 @@ function addItem(mod, content){
         var arr=itemsOf(mod);
         arr.sort(function(a,b){return ids.indexOf(a.id)-ids.indexOf(b.id);});
         structSave();
+        syncPush(); // 排序是结构性变更：立即推送云端，防刷新被旧顺序覆盖
       }
       yEl.classList.remove('dragging');
     }
@@ -1358,7 +1363,8 @@ function delItem(mod,id){
   if(idx<0)return;
   lastDeleted={mod:mod,item:arr[idx],idx:idx};
   arr.splice(idx,1);
-  rerender(mod);structSave(); // 立即 diff→op 推送云端（del op 即墓碑，无需额外删除标记）
+  rerender(mod);structSave(); // 立即保存并推送云端（del op 即墓碑，无需额外删除标记）
+  syncPush();
   toastUndo('已删除这条',function(){
     if(!lastDeleted)return;
     var mm=lastDeleted.mod,it=lastDeleted.item,ix=lastDeleted.idx;
@@ -1366,6 +1372,7 @@ function delItem(mod,id){
     var a=itemsOf(mm);
     a.splice(Math.min(ix,a.length),0,it);
     rerender(mm);structSave();toast('已恢复');
+    syncPush(); // 撤销删除同样立即同步
   });
 }
 /* 撤销：退回本次编辑前的状态（手动改错 / 排版改错都可用） */
